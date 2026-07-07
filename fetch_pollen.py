@@ -5,8 +5,8 @@ Data source: astma-allergi.dk's backend API (no scraping / JS needed).
 The feed is a double-JSON-encoded Firestore-style document keyed by station id;
 station "48" is Copenhagen / East Denmark.
 
-Run once per day:  python3 pollen.py
-Custom output:     python3 pollen.py --out /path/to/pollen.jsonl
+Run once per day:  python3 fetch_pollen.py
+Custom output:     python3 fetch_pollen.py --out /path/to/pollen.jsonl
 """
 
 import argparse

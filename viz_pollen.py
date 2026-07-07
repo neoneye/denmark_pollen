@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Render pollen.jsonl as a small-multiples chart image.
 
-Companion to pollen.py: cron runs pollen.py (fetch/append) first, then this
-script to regenerate the chart from the accumulated history.
+Companion to fetch_pollen.py: cron runs fetch_pollen.py (fetch/append) first,
+then this script to regenerate the chart from the accumulated history.
 
 Run:           .venv/bin/python3 viz_pollen.py
 Custom paths:  .venv/bin/python3 viz_pollen.py --data pollen.jsonl --out pollen.webp
@@ -17,7 +17,7 @@ import tempfile
 from datetime import date, timedelta
 from typing import Optional
 
-from pollen import POLLEN_LEVEL_INTERVALS, POLLEN_NAMES
+from fetch_pollen import POLLEN_LEVEL_INTERVALS, POLLEN_NAMES
 
 # key -> label shown on its panel
 DISPLAY_NAMES: dict[str, str] = {

@@ -39,14 +39,14 @@ def test_commit_message():
 def test_main_skips_when_no_new_data():
     recorder = _stubbed(porcelain="")
     assert daily.main() == 0
-    assert len(recorder.calls) == 1  # only pollen.py ran
-    assert "pollen.py" in recorder.calls[0][1]
+    assert len(recorder.calls) == 1  # only fetch_pollen.py ran
+    assert "fetch_pollen.py" in recorder.calls[0][1]
 
 
 def test_main_publishes_when_new_data():
     recorder = _stubbed(porcelain=" M pollen.jsonl\n")
     assert daily.main() == 0
-    assert "pollen.py" in recorder.calls[0][1]
+    assert "fetch_pollen.py" in recorder.calls[0][1]
     assert "viz_pollen.py" in recorder.calls[1][1]
     assert [call[:2] for call in recorder.calls[2:]] == [
         ["git", "add"], ["git", "commit"], ["git", "push"],

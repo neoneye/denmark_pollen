@@ -10,7 +10,7 @@ import subprocess
 import sys
 from typing import Optional
 
-from pollen import last_measurement_date
+from fetch_pollen import last_measurement_date
 
 REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = "pollen.jsonl"
@@ -53,8 +53,8 @@ def _porcelain() -> str:
 
 
 def main() -> int:
-    if run([sys.executable, os.path.join(REPO_DIR, "pollen.py")]) != 0:
-        say("pollen.py failed; aborting")
+    if run([sys.executable, os.path.join(REPO_DIR, "fetch_pollen.py")]) != 0:
+        say("fetch_pollen.py failed; aborting")
         return 1
 
     if not has_changes(_porcelain()):

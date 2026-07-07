@@ -7,8 +7,8 @@ logged to `pollen.jsonl` and charted to `pollen.webp`.
 
 ## Scripts
 
-- `pollen.py` — fetches today's counts and appends one JSONL row per measurement
-  day (stdlib only).
+- `fetch_pollen.py` — fetches today's counts and appends one JSONL row per
+  measurement day (stdlib only).
 - `viz_pollen.py` — renders `pollen.jsonl` as a small-multiples chart (webp by
   default; the `--out` extension picks the format), one panel per in-season pollen
   type, with the site's low/moderate/high thresholds as background bands. Needs
@@ -34,7 +34,7 @@ python3 -m venv .venv
 ## Tests
 
 ```sh
-python3 test_pollen.py
+python3 test_fetch_pollen.py
 python3 test_daily.py
 .venv/bin/python3 test_viz_pollen.py
 ```
