@@ -93,3 +93,126 @@ def series_for(rows: list[dict], key: str) -> tuple[list[date], list[float]]:
     first, last = min(by_day), max(by_day)
     days = [first + timedelta(days=offset) for offset in range((last - first).days + 1)]
     return days, [by_day.get(day, math.nan) for day in days]
+
+
+# Light-mode chart palette (validated reference palette).
+SURFACE = "#fcfcfb"
+INK_PRIMARY = "#0b0b0b"
+INK_SECONDARY = "#52514e"
+INK_MUTED = "#898781"
+GRIDLINE = "#e1e0d9"
+BASELINE = "#c3c2b7"
+SERIES = "#2a78d6"
+BAND_COLORS = {"low": "#0ca30c", "moderate": "#fab219", "high": "#d03b3b"}
+BAND_ALPHA = 0.10
+
+
+def _draw_bands(ax, intervals: list[int], y_max: float) -> None:
+    """Low/moderate/high background washes, labeled when tall enough to fit text."""
+    bounds = [
+        (0.0, float(intervals[1]), "low"),
+        (float(intervals[1]), float(intervals[2]), "moderate"),
+        (float(intervals[2]), y_max, "high"),
+    ]
+    for band_low, band_high, name in bounds:
+        band_high = min(band_high, y_max)
+        if band_high <= band_low:
+            continue
+        ax.axhspan(band_low, band_high, facecolor=BAND_COLORS[name], alpha=BAND_ALPHA, linewidth=0, zorder=0)
+        if (band_high - band_low) / y_max >= 0.12:
+            ax.text(
+                0.995, (band_low + band_high) / 2, name,
+                transform=ax.get_yaxis_transform(),
+                ha="right", va="center", fontsize=7, color=INK_SECONDARY, zorder=1,
+            )
+
+
+def _atomic_savefig(fig, out_path: str) -> None:
+    """Write the figure to a temp file next to out_path, then rename into place."""
+    out_dir = os.path.dirname(os.path.abspath(out_path))
+    fd, tmp_path = tempfile.mkstemp(prefix=".pollen-", suffix=".png", dir=out_dir)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            fig.savefig(handle, format="png", facecolor=fig.get_facecolor())
+        os.replace(tmp_path, out_path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def render_chart(rows: list[dict], out_path: str) -> None:
+    """Render one panel per active pollen type and atomically write the PNG.
+
+    rows must be non-empty with at least one active type (main() validates).
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
+
+    keys = active_types(rows)
+    fig, axes = plt.subplots(
+        len(keys), 1, sharex=True, squeeze=False,
+        figsize=(8, 1.9 * len(keys) + 1.1), dpi=150,
+    )
+    fig.patch.set_facecolor(SURFACE)
+
+    for ax, key in zip(axes[:, 0], keys):
+        days, levels = series_for(rows, key)
+        measured = [(day, level) for day, level in zip(days, levels) if not math.isnan(level)]
+        y_max = max(1.0, max(level for _, level in measured) * 1.15)
+
+        ax.set_facecolor(SURFACE)
+        ax.set_axisbelow(True)
+        ax.grid(axis="y", color=GRIDLINE, linewidth=1)
+        _draw_bands(ax, POLLEN_LEVEL_INTERVALS[KEY_TO_ID[key]], y_max)
+        ax.plot(
+            days, levels,
+            color=SERIES, linewidth=2, solid_capstyle="round", solid_joinstyle="round",
+            marker="o", markersize=6, markerfacecolor=SERIES,
+            markeredgecolor=SURFACE, markeredgewidth=1.5, zorder=3,
+        )
+        last_day, last_level = measured[-1]
+        ax.annotate(
+            f"{last_level:g}", xy=(last_day, last_level), xytext=(0, 8),
+            textcoords="offset points", ha="center", fontsize=8, color=INK_PRIMARY, zorder=4,
+        )
+
+        ax.set_title(DISPLAY_NAMES.get(key, key), loc="left", fontsize=10, color=INK_PRIMARY, pad=4)
+        ax.set_ylim(0, y_max)
+        ax.margins(x=0.02)
+        for side in ("top", "right", "left"):
+            ax.spines[side].set_visible(False)
+        ax.spines["bottom"].set_color(BASELINE)
+        ax.tick_params(colors=INK_MUTED, labelsize=8)
+        ax.tick_params(axis="y", length=0)
+
+    locator = mdates.AutoDateLocator()
+    axes[-1, 0].xaxis.set_major_locator(locator)
+    axes[-1, 0].xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+
+    station = rows[-1].get("station_name", "")
+    first_date = rows[0]["measurement_date"]
+    last_date = rows[-1]["measurement_date"]
+    fig.suptitle(
+        f"Pollen — {station}", x=0.02, y=0.995, ha="left", va="top",
+        fontsize=12, fontweight="bold", color=INK_PRIMARY,
+    )
+    fig.text(
+        0.98, 0.995, f"{first_date} → {last_date}", ha="right", va="top",
+        fontsize=9, color=INK_SECONDARY,
+    )
+    fig.text(
+        0.02, 0.004, f"Source: astma-allergi.dk · generated {date.today().isoformat()}",
+        ha="left", va="bottom", fontsize=7, color=INK_MUTED,
+    )
+    fig.tight_layout(rect=(0, 0.025, 1, 0.95))
+
+    try:
+        _atomic_savefig(fig, out_path)
+    finally:
+        plt.close(fig)

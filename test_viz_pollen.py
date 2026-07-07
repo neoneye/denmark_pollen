@@ -82,6 +82,23 @@ def test_series_for_breaks_line_across_missing_days():
     assert levels[3] == 60.0
 
 
+def test_render_chart_writes_png():
+    try:
+        import matplotlib  # noqa: F401
+    except ModuleNotFoundError:
+        print("SKIP test_render_chart_writes_png (matplotlib not installed)")
+        return
+    rows = viz_pollen.load_rows("pollen.jsonl")  # the repo's real data
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, "pollen.png")
+        viz_pollen.render_chart(rows, out)
+        assert os.path.exists(out)
+        with open(out, "rb") as f:
+            header = f.read(8)
+        assert header == b"\x89PNG\r\n\x1a\n", "not a PNG file"
+        assert os.path.getsize(out) > 10_000  # a real multi-panel chart, not a stub
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):
