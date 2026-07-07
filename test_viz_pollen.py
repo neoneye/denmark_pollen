@@ -99,6 +99,35 @@ def test_render_chart_writes_png():
         assert os.path.getsize(out) > 10_000  # a real multi-panel chart, not a stub
 
 
+def test_main_errors_on_missing_file():
+    with tempfile.TemporaryDirectory() as d:
+        missing = os.path.join(d, "nope.jsonl")
+        assert viz_pollen.main(["--data", missing, "--out", os.path.join(d, "out.png")]) == 1
+
+
+def test_main_errors_on_empty_and_unplottable_data():
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, "out.png")
+        empty = _write_jsonl(d, [])
+        assert viz_pollen.main(["--data", empty, "--out", out]) == 1
+        no_data = _write_jsonl(d, [_row("2026-06-22", {"graes": -1})])  # rows, but nothing plottable
+        assert viz_pollen.main(["--data", no_data, "--out", out]) == 1
+        assert not os.path.exists(out)
+
+
+def test_main_renders_png_on_success():
+    try:
+        import matplotlib  # noqa: F401
+    except ModuleNotFoundError:
+        print("SKIP test_main_renders_png_on_success (matplotlib not installed)")
+        return
+    with tempfile.TemporaryDirectory() as d:
+        path = _write_jsonl(d, [_row("2026-06-22", {"graes": 82}), _row("2026-06-24", {"graes": 86})])
+        out = os.path.join(d, "out.png")
+        assert viz_pollen.main(["--data", path, "--out", out]) == 0
+        assert os.path.getsize(out) > 0
+
+
 if __name__ == "__main__":
     failures = 0
     for name, fn in sorted(globals().items()):

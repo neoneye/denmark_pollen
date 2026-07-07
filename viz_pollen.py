@@ -216,3 +216,31 @@ def render_chart(rows: list[dict], out_path: str) -> None:
         _atomic_savefig(fig, out_path)
     finally:
         plt.close(fig)
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="Render pollen.jsonl as a small-multiples PNG chart.")
+    parser.add_argument("--data", default="pollen.jsonl", help="input JSONL path (default: ./pollen.jsonl)")
+    parser.add_argument("--out", default="pollen.png", help="output PNG path (default: ./pollen.png)")
+    args = parser.parse_args(argv)
+
+    try:
+        rows = load_rows(args.data)
+    except OSError as exc:
+        print(f"error: cannot read {args.data}: {exc}", file=sys.stderr)
+        return 1
+    if not rows:
+        print(f"error: no rows in {args.data}", file=sys.stderr)
+        return 1
+    keys = active_types(rows)
+    if not keys:
+        print(f"error: no plottable measurements in {args.data}", file=sys.stderr)
+        return 1
+
+    render_chart(rows, args.out)
+    print(f"wrote {args.out}: {len(rows)} days, {len(keys)} pollen types")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
