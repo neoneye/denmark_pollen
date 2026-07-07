@@ -31,6 +31,17 @@ python3 -m venv .venv
 30 13 * * * python3 /Users/neoneye/git/denmark_pollen/daily.py
 ```
 
+## Health check
+
+```sh
+python3 daily.py --health            # exit 0 = pipeline healthy, 1 = problems
+python3 daily.py --health --max-age-hours 48
+```
+
+Checks: venv present, `pollen.jsonl` readable, data fresher than the threshold
+(default 30 h). When stale it probes the live feed to distinguish "source
+hasn't published" (OK) from "site down" or "cron not recording" (FAIL).
+
 ## Tests
 
 ```sh
