@@ -99,6 +99,21 @@ def test_render_chart_writes_png():
         assert os.path.getsize(out) > 10_000  # a real multi-panel chart, not a stub
 
 
+def test_render_chart_writes_webp():
+    try:
+        import matplotlib  # noqa: F401
+    except ModuleNotFoundError:
+        print("SKIP test_render_chart_writes_webp (matplotlib not installed)")
+        return
+    rows = viz_pollen.load_rows("pollen.jsonl")  # the repo's real data
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, "pollen.webp")
+        viz_pollen.render_chart(rows, out)
+        with open(out, "rb") as f:
+            header = f.read(12)
+        assert header[:4] == b"RIFF" and header[8:12] == b"WEBP", "not a WEBP file"
+
+
 def test_main_errors_on_missing_file():
     with tempfile.TemporaryDirectory() as d:
         missing = os.path.join(d, "nope.jsonl")

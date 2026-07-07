@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Render pollen.jsonl as a small-multiples PNG chart.
+"""Render pollen.jsonl as a small-multiples chart image.
 
 Companion to pollen.py: cron runs pollen.py (fetch/append) first, then this
 script to regenerate the chart from the accumulated history.
 
 Run:           .venv/bin/python3 viz_pollen.py
-Custom paths:  .venv/bin/python3 viz_pollen.py --data pollen.jsonl --out pollen.png
+Custom paths:  .venv/bin/python3 viz_pollen.py --data pollen.jsonl --out pollen.webp
 """
 
 import argparse
@@ -128,12 +128,16 @@ def _draw_bands(ax, intervals: list[int], y_max: float) -> None:
 
 
 def _atomic_savefig(fig, out_path: str) -> None:
-    """Write the figure to a temp file next to out_path, then rename into place."""
+    """Write the figure to a temp file next to out_path, then rename into place.
+
+    The image format follows out_path's extension (e.g. .png, .webp).
+    """
+    image_format = os.path.splitext(out_path)[1].lstrip(".").lower() or "png"
     out_dir = os.path.dirname(os.path.abspath(out_path))
-    fd, tmp_path = tempfile.mkstemp(prefix=".pollen-", suffix=".png", dir=out_dir)
+    fd, tmp_path = tempfile.mkstemp(prefix=".pollen-", suffix=f".{image_format}", dir=out_dir)
     try:
         with os.fdopen(fd, "wb") as handle:
-            fig.savefig(handle, format="png", facecolor=fig.get_facecolor())
+            fig.savefig(handle, format=image_format, facecolor=fig.get_facecolor())
         os.replace(tmp_path, out_path)
     except BaseException:
         try:
@@ -221,7 +225,7 @@ def render_chart(rows: list[dict], out_path: str) -> None:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Render pollen.jsonl as a small-multiples PNG chart.")
     parser.add_argument("--data", default="pollen.jsonl", help="input JSONL path (default: ./pollen.jsonl)")
-    parser.add_argument("--out", default="pollen.png", help="output PNG path (default: ./pollen.png)")
+    parser.add_argument("--out", default="pollen.webp", help="output image path; format follows the extension (default: ./pollen.webp)")
     args = parser.parse_args(argv)
 
     try:
