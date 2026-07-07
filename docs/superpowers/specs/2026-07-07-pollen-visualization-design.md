@@ -65,7 +65,8 @@ unreadable, or contains no plottable rows.
 
 ## Testing
 
-`test_viz_pollen.py`, runnable with `python3 -m unittest`:
+`test_viz_pollen.py`, in the same bare test-function style and self-runner as the
+existing `test_pollen.py` (run: `python3 test_viz_pollen.py`), covering:
 
 - load/dedup/sort behaviour, including malformed and blank lines;
 - no-data handling (`-1`/`null` levels, empty file → error exit);
