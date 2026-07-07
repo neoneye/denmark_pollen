@@ -115,6 +115,21 @@ def test_main_errors_on_empty_and_unplottable_data():
         assert not os.path.exists(out)
 
 
+def test_main_errors_cleanly_without_matplotlib():
+    try:
+        import matplotlib  # noqa: F401
+        print("SKIP test_main_errors_cleanly_without_matplotlib (matplotlib is installed)")
+        return
+    except ModuleNotFoundError:
+        pass
+    with tempfile.TemporaryDirectory() as d:
+        path = _write_jsonl(d, [_row("2026-06-22", {"graes": 82})])
+        out = os.path.join(d, "out.png")
+        # must return 1 with a message, not blow up with a traceback
+        assert viz_pollen.main(["--data", path, "--out", out]) == 1
+        assert not os.path.exists(out)
+
+
 def test_main_renders_png_on_success():
     try:
         import matplotlib  # noqa: F401

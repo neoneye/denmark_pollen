@@ -237,7 +237,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"error: no plottable measurements in {args.data}", file=sys.stderr)
         return 1
 
-    render_chart(rows, args.out)
+    try:
+        render_chart(rows, args.out)
+    except ModuleNotFoundError as exc:
+        print(
+            f"error: {exc.name} is not installed for {sys.executable}\n"
+            f"run with the project venv:  .venv/bin/python3 {os.path.basename(sys.argv[0])}\n"
+            f"or install dependencies:   .venv/bin/pip install -r requirements.txt",
+            file=sys.stderr,
+        )
+        return 1
     print(f"wrote {args.out}: {len(rows)} days, {len(keys)} pollen types")
     return 0
 
