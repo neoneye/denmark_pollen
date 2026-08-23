@@ -1,0 +1,56 @@
+name: daily
+
+on:
+  schedule:
+    # UTC — GitHub cron has no timezone and no DST, so these drift an hour
+    # between CET and CEST. Three attempts a day absorb that drift plus the
+    # queue delay (5-30 min is normal) and the occasional skipped run:
+    # fetch_pollen.py is idempotent and exits 0 when there is nothing new.
+    - cron: "0 12 * * *"
+    - cron: "0 16 * * *"
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch, chart, commit, push
+        run: python3 daily.py
+
+      - name: Keep the schedule alive
+        # GitHub disables scheduled workflows in a public repo after 60 days
+        # with no commit activity. Off-season the source stops publishing, so
+        # daily.py stops committing — an empty commit every 45 idle days keeps
+        # the schedule from switching itself off before next spring.
+        run: |
+          idle_days=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "last commit was $idle_days day(s) ago"
+          if [ "$idle_days" -ge 45 ]; then
+            git commit --allow-empty -m "chore: keepalive (GitHub disables idle schedules after 60 days)"
+            git push origin main
+          fi
+
+      - name: Health check
+        run: python3 daily.py --health

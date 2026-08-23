@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Daily cron entry point: fetch pollen data, and when a new measurement
-arrived, re-render the chart, commit, and push to GitHub.
+"""Daily entry point: fetch pollen data, and when a new measurement arrived,
+re-render the chart, commit, and push to GitHub.
 
-Cron: 30 13 * * * python3 /Users/neoneye/git/denmark_pollen/daily.py
+Runs unattended from .github/workflows/daily.yml, and by hand or from cron:
+    python3 /Users/neoneye/git/denmark_pollen/daily.py
 """
 
 import argparse
@@ -31,11 +32,7 @@ def run(argv: list[str]) -> int:
     try:
         return subprocess.run(argv, cwd=REPO_DIR).returncode
     except FileNotFoundError:
-        say(
-            f"error: {argv[0]} not found"
-            " (missing venv? create it: python3 -m venv .venv"
-            " && .venv/bin/pip install -r requirements.txt)"
-        )
+        say(f"error: {argv[0]} not found")
         return 127
 
 
@@ -60,6 +57,23 @@ MAX_AGE_HOURS = 30.0  # 24h cadence + a few hours of grace
 
 def _venv_exists() -> bool:
     return os.path.exists(VENV_PYTHON)
+
+
+def viz_python() -> str:
+    """Interpreter for viz_pollen.py: the repo venv locally, else our own
+    (CI installs requirements straight into the runner's Python)."""
+    return VENV_PYTHON if _venv_exists() else sys.executable
+
+
+def _matplotlib_available() -> bool:
+    """True if the viz interpreter can import matplotlib."""
+    try:
+        return subprocess.run(
+            [viz_python(), "-c", "import matplotlib"],
+            cwd=REPO_DIR, capture_output=True,
+        ).returncode == 0
+    except OSError:
+        return False
 
 
 def last_row(path: str) -> Optional[dict]:
@@ -100,13 +114,13 @@ def health(now: datetime, max_age_hours: float) -> int:
     """Run all health checks, print one line per check, return 0/1."""
     healthy = True
 
-    if _venv_exists():
-        say("health: OK venv python present")
+    if _matplotlib_available():
+        say(f"health: OK {viz_python()} can import matplotlib")
     else:
         healthy = False
         say(
-            "health: FAIL venv python missing"
-            " (create it: python3 -m venv .venv"
+            f"health: FAIL {viz_python()} cannot import matplotlib"
+            " (create the venv: python3 -m venv .venv"
             " && .venv/bin/pip install -r requirements.txt)"
         )
 
@@ -160,7 +174,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         say(f"no new measurement (last recorded {last}); nothing to do")
         return 0
 
-    if run([VENV_PYTHON, os.path.join(REPO_DIR, "viz_pollen.py")]) != 0:
+    if run([viz_python(), os.path.join(REPO_DIR, "viz_pollen.py")]) != 0:
         say("viz_pollen.py failed; aborting (data stays uncommitted, next run retries)")
         return 1
 

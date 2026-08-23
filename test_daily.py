@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Offline tests for daily.py — no subprocesses, no git. Run: python3 test_daily.py"""
 
+import sys
 from datetime import datetime, timedelta, timezone
 
 import daily
+
+_REAL_VIZ_PYTHON = daily.viz_python
 
 
 class _Recorder:
@@ -21,6 +24,7 @@ class _Recorder:
 def _stubbed(porcelain, exit_codes=None, last_date="2026-07-06"):
     """Point daily's collaborators at stubs; return the run recorder."""
     recorder = _Recorder(exit_codes)
+    daily.viz_python = _REAL_VIZ_PYTHON
     daily.run = recorder
     daily._porcelain = lambda: porcelain
     daily.last_measurement_date = lambda path: last_date
@@ -43,6 +47,23 @@ def test_main_skips_when_no_new_data():
     assert daily.main() == 0
     assert len(recorder.calls) == 1  # only fetch_pollen.py ran
     assert "fetch_pollen.py" in recorder.calls[0][1]
+
+
+def test_viz_python_prefers_the_repo_venv():
+    daily._venv_exists = lambda: True
+    assert daily.viz_python() == daily.VENV_PYTHON
+
+
+def test_viz_python_falls_back_to_the_running_interpreter():
+    daily._venv_exists = lambda: False
+    assert daily.viz_python() == sys.executable
+
+
+def test_main_runs_viz_with_the_resolved_interpreter():
+    recorder = _stubbed(porcelain=" M pollen.jsonl\n")
+    daily.viz_python = lambda: "/somewhere/python3"
+    assert daily.main() == 0
+    assert recorder.calls[1][0] == "/somewhere/python3"
 
 
 def test_main_publishes_when_new_data():
@@ -87,9 +108,9 @@ def _health_row(hours_old, measurement_date="2026-07-06"):
     }
 
 
-def _stub_health(row, venv=True, feed_date=None, feed_error=None):
+def _stub_health(row, matplotlib=True, feed_date=None, feed_error=None):
     """Stub daily's health seams. feed_error wins over feed_date."""
-    daily._venv_exists = lambda: venv
+    daily._matplotlib_available = lambda: matplotlib
     daily.last_row = lambda path: row
 
     def probe():
@@ -112,8 +133,8 @@ def test_health_ok_when_fresh():
     assert daily.health(_NOW, 30.0) == 0
 
 
-def test_health_fails_when_venv_missing():
-    _stub_health(_health_row(5), venv=False)
+def test_health_fails_when_matplotlib_is_missing():
+    _stub_health(_health_row(5), matplotlib=False)
     assert daily.health(_NOW, 30.0) == 1
 
 
